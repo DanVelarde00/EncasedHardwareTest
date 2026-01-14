@@ -12,7 +12,6 @@
 #include <Adafruit_H3LIS331.h>
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
-#include <FastLED.h>
 #include "config.h"
 
 // =============================================================================
@@ -20,7 +19,6 @@
 // =============================================================================
 Adafruit_H3LIS331 h3lis = Adafruit_H3LIS331();
 Adafruit_MPU6050 mpu;
-CRGB leds[NUM_LEDS];
 
 // =============================================================================
 // State Machine
@@ -50,11 +48,6 @@ bool wasUpsideDown = false;
 uint32_t countdownStartTime = 0;
 uint32_t flipDetectTime = 0;
 
-#define COUNTDOWN_DURATION_MS   5000    // 5 second countdown before drop
-#define UPSIDE_DOWN_THRESHOLD   -0.5    // Z < -0.5g = upside down
-#define RIGHT_SIDE_UP_THRESHOLD 0.5     // Z > 0.5g = right side up
-#define FLIP_HOLD_TIME_MS       500     // Must hold upside down for 500ms
-
 // =============================================================================
 // Impact Detection & Logging
 // =============================================================================
@@ -70,9 +63,6 @@ volatile uint16_t bufferIndex = 0;
 volatile bool isLogging = false;
 volatile uint32_t triggerTime = 0;
 volatile uint32_t lastHighGTime = 0;
-
-#define POST_IMPACT_QUIET_MS    2000    // Stop 2 sec after last high-G reading
-#define IMPACT_THRESHOLD_G      5.0     // G-force to detect impact
 
 IntervalTimer sampleTimer;
 
@@ -150,23 +140,20 @@ void loop() {
 // STATE: IDLE - Waiting for flip gesture
 // =============================================================================
 void handleIdleState() {
-    // Green breathing LED
+    // Slow blink: 1 sec on / 1 sec off
     static uint32_t lastUpdate = 0;
-    static uint8_t brightness = 20;
-    static int8_t direction = 1;
-    
-    if (millis() - lastUpdate > 30) {
-        brightness += direction * 3;
-        if (brightness >= 80 || brightness <= 20) direction *= -1;
-        fill_solid(leds, NUM_LEDS, CRGB(0, brightness, 0));
-        FastLED.show();
+    static bool ledOn = false;
+
+    if (millis() - lastUpdate > 1000) {
+        ledOn = !ledOn;
+        digitalWrite(PIN_LED, ledOn ? HIGH : LOW);
         lastUpdate = millis();
     }
-    
+
     // Check if flipped upside down
     float zG = readZAxis();
-    
-    if (zG < UPSIDE_DOWN_THRESHOLD) {
+
+    if (zG < UPSIDE_DOWN_G) {
         flipDetectTime = millis();
         currentState = STATE_FLIPPED;
         Serial.println(F("Upside down detected..."));
@@ -177,22 +164,21 @@ void handleIdleState() {
 // STATE: FLIPPED - Upside down, waiting for flip back
 // =============================================================================
 void handleFlippedState() {
-    // Solid blue while upside down
-    fill_solid(leds, NUM_LEDS, CRGB(0, 0, 128));
-    FastLED.show();
-    
+    // Solid ON while upside down
+    digitalWrite(PIN_LED, HIGH);
+
     float zG = readZAxis();
-    
+
     // Still upside down?
-    if (zG < UPSIDE_DOWN_THRESHOLD) {
+    if (zG < UPSIDE_DOWN_G) {
         // Good, stay in this state
         return;
     }
-    
+
     // Flipped back to right-side up?
-    if (zG > RIGHT_SIDE_UP_THRESHOLD) {
+    if (zG > RIGHT_SIDE_UP_G) {
         // Check if was held upside down long enough
-        if (millis() - flipDetectTime > FLIP_HOLD_TIME_MS) {
+        if (millis() - flipDetectTime > FLIP_HOLD_MS) {
             countdownStartTime = millis();
             currentState = STATE_COUNTDOWN;
             Serial.println(F("\n*** COUNTDOWN STARTED ***"));
@@ -206,12 +192,12 @@ void handleFlippedState() {
 }
 
 // =============================================================================
-// STATE: COUNTDOWN - 5 second red blinking countdown
+// STATE: COUNTDOWN - 5 second blinking countdown (accelerating)
 // =============================================================================
 void handleCountdownState() {
     uint32_t elapsed = millis() - countdownStartTime;
-    uint32_t remaining = (COUNTDOWN_DURATION_MS > elapsed) ? (COUNTDOWN_DURATION_MS - elapsed) : 0;
-    
+    uint32_t remaining = (COUNTDOWN_MS > elapsed) ? (COUNTDOWN_MS - elapsed) : 0;
+
     // Blink rate increases as countdown progresses
     uint32_t blinkInterval;
     if (remaining > 3000) {
@@ -221,23 +207,22 @@ void handleCountdownState() {
     } else {
         blinkInterval = 100;      // Fast blink: last second
     }
-    
+
     static uint32_t lastBlink = 0;
     static bool ledOn = false;
-    
+
     if (millis() - lastBlink > blinkInterval) {
         ledOn = !ledOn;
-        fill_solid(leds, NUM_LEDS, ledOn ? CRGB(255, 0, 0) : CRGB(0, 0, 0));
-        FastLED.show();
-        
+        digitalWrite(PIN_LED, ledOn ? HIGH : LOW);
+
         if (ledOn) {
             // Pitch increases as countdown progresses
-            uint16_t pitch = map(elapsed, 0, COUNTDOWN_DURATION_MS, 800, 2000);
+            uint16_t pitch = map(elapsed, 0, COUNTDOWN_MS, 800, 2000);
             tone(PIN_BUZZER, pitch, 30);
         }
         lastBlink = millis();
     }
-    
+
     // Print countdown
     static uint32_t lastPrint = 0;
     if (millis() - lastPrint > 1000) {
@@ -246,50 +231,45 @@ void handleCountdownState() {
         Serial.println(F("..."));
         lastPrint = millis();
     }
-    
+
     // Countdown complete!
-    if (elapsed >= COUNTDOWN_DURATION_MS) {
+    if (elapsed >= COUNTDOWN_MS) {
         currentState = STATE_ARMED;
-        fill_solid(leds, NUM_LEDS, CRGB(0, 255, 0));
-        FastLED.show();
-        
+        digitalWrite(PIN_LED, HIGH);  // Solid ON
+
         // Long beep = ready
         tone(PIN_BUZZER, 2500, 500);
-        
-        Serial.println(F("\n*** GREEN = DROP NOW ***\n"));
+
+        Serial.println(F("\n*** ARMED = DROP NOW ***\n"));
     }
 }
 
 // =============================================================================
-// STATE: ARMED - Solid green, waiting for impact
+// STATE: ARMED - Solid ON, waiting for impact
 // =============================================================================
 void handleArmedState() {
-    // Solid green = ready to drop
-    fill_solid(leds, NUM_LEDS, CRGB(0, 255, 0));
-    FastLED.show();
-    
+    // Solid ON = ready to drop
+    digitalWrite(PIN_LED, HIGH);
+
     // Monitor for impact
     sensors_event_t event;
     h3lis.getEvent(&event);
-    
+
     float gMag = sqrt(event.acceleration.x * event.acceleration.x +
                       event.acceleration.y * event.acceleration.y +
                       event.acceleration.z * event.acceleration.z) / 9.81;
-    
-    if (gMag > IMPACT_THRESHOLD_G) {
+
+    if (gMag > TRIGGER_THRESHOLD_G) {
         // IMPACT!
         triggerTime = micros();
         lastHighGTime = millis();
         isLogging = true;
         bufferIndex = 0;
         currentState = STATE_TRIGGERED;
-        
+
         // Start high-speed sampling
         sampleTimer.begin(sampleISR, 1000);  // 1000 Hz
-        
-        fill_solid(leds, NUM_LEDS, CRGB(255, 0, 0));
-        FastLED.show();
-        
+
         Serial.print(F("*** IMPACT: "));
         Serial.print(gMag, 1);
         Serial.println(F(" G ***"));
@@ -297,90 +277,117 @@ void handleArmedState() {
 }
 
 // =============================================================================
-// STATE: TRIGGERED - Red solid, logging data
+// STATE: TRIGGERED - Rapid flash, logging data
 // =============================================================================
 void handleTriggeredState() {
-    // Solid red while logging
-    fill_solid(leds, NUM_LEDS, CRGB(255, 0, 0));
-    FastLED.show();
-    
+    // Rapid flash (50ms) while logging
+    static uint32_t lastBlink = 0;
+    static bool ledOn = false;
+
+    if (millis() - lastBlink > 50) {
+        ledOn = !ledOn;
+        digitalWrite(PIN_LED, ledOn ? HIGH : LOW);
+        lastBlink = millis();
+    }
+
     // Check for continued high-G (bounces, secondary impacts)
     sensors_event_t event;
     h3lis.getEvent(&event);
-    
+
     float gMag = sqrt(event.acceleration.x * event.acceleration.x +
                       event.acceleration.y * event.acceleration.y +
                       event.acceleration.z * event.acceleration.z) / 9.81;
-    
+
     // Update last high-G time if still experiencing impact
-    if (gMag > IMPACT_THRESHOLD_G) {
+    if (gMag > TRIGGER_THRESHOLD_G) {
         lastHighGTime = millis();
     }
-    
+
     // Stop conditions:
     // 1. 2 seconds since last high-G reading
     // 2. Buffer full
-    bool timeout = (millis() - lastHighGTime) > POST_IMPACT_QUIET_MS;
+    bool timeout = (millis() - lastHighGTime) > POST_TRIGGER_MS;
     bool bufferFull = bufferIndex >= BUFFER_SIZE;
-    
+
     if (timeout || bufferFull) {
         // Stop logging
         sampleTimer.end();
         isLogging = false;
-        
+
         Serial.println(F("\n*** LOGGING STOPPED ***"));
         Serial.print(F("Samples: "));
         Serial.println(bufferIndex);
         Serial.print(F("Reason: "));
         Serial.println(timeout ? F("2 sec quiet") : F("Buffer full"));
-        
+
         // Save to SD
         saveDataToSD();
-        
+
         // Victory sound
         tone(PIN_BUZZER, 1500, 100);
         delay(120);
         tone(PIN_BUZZER, 2000, 100);
         delay(120);
         tone(PIN_BUZZER, 2500, 200);
-        
+
         currentState = STATE_COMPLETE;
     }
 }
 
 // =============================================================================
-// STATE: COMPLETE - Rainbow, data saved
+// STATE: COMPLETE - Double-blink heartbeat, data saved
 // =============================================================================
 void handleCompleteState() {
-    // Rainbow cycle
-    static uint32_t lastUpdate = 0;
-    static uint8_t hue = 0;
-    
-    if (millis() - lastUpdate > 50) {
-        for (int i = 0; i < NUM_LEDS; i++) {
-            leds[i] = CHSV(hue + (i * 40), 255, 128);
-        }
-        FastLED.show();
-        hue += 3;
-        lastUpdate = millis();
+    // Double-blink heartbeat pattern
+    static uint32_t stateStart = 0;
+    if (stateStart == 0) stateStart = millis();
+
+    uint32_t elapsed = millis() - stateStart;
+    uint32_t phase = elapsed % 2000;  // 2 second cycle
+
+    // Pattern: ON(100) OFF(100) ON(100) OFF(1700)
+    if (phase < 100) {
+        digitalWrite(PIN_LED, HIGH);
+    } else if (phase < 200) {
+        digitalWrite(PIN_LED, LOW);
+    } else if (phase < 300) {
+        digitalWrite(PIN_LED, HIGH);
+    } else {
+        digitalWrite(PIN_LED, LOW);
     }
-    
+
     // Stay in complete state forever (power cycle to reset)
 }
 
 // =============================================================================
-// STATE: ERROR - Red flashing
+// STATE: ERROR - SOS pattern
 // =============================================================================
 void handleErrorState() {
-    static uint32_t lastUpdate = 0;
-    static bool ledOn = false;
-    
-    if (millis() - lastUpdate > 300) {
-        ledOn = !ledOn;
-        fill_solid(leds, NUM_LEDS, ledOn ? CRGB(255, 0, 0) : CRGB(0, 0, 0));
-        FastLED.show();
-        if (ledOn) tone(PIN_BUZZER, 200, 100);
-        lastUpdate = millis();
+    // SOS: ... --- ... (short short short long long long short short short)
+    static uint32_t stateStart = 0;
+    if (stateStart == 0) stateStart = millis();
+
+    uint32_t elapsed = millis() - stateStart;
+    uint32_t phase = elapsed % 4000;  // 4 second cycle
+
+    // S: 3x 200ms blink, O: 3x 600ms blink
+    // Pattern: S(200 on/200 off x3) O(600 on/200 off x3) S(200 on/200 off x3) pause(1000)
+    bool ledState = false;
+
+    if (phase < 600) {  // First S: 0-600ms
+        ledState = ((phase / 200) % 2 == 0);
+    } else if (phase < 1800) {  // O: 600-1800ms (3x 400ms)
+        ledState = (((phase - 600) / 400) % 2 == 0);
+    } else if (phase < 2400) {  // Second S: 1800-2400ms
+        ledState = (((phase - 1800) / 200) % 2 == 0);
+    }
+    // else: pause until 4000ms
+
+    static bool lastState = false;
+    if (ledState != lastState) {
+        digitalWrite(PIN_LED, ledState ? HIGH : LOW);
+        if (ledState) tone(PIN_BUZZER, 200, 100);
+        lastState = ledState;
     }
 }
 
@@ -419,10 +426,14 @@ float readZAxis() {
 // Initialization Functions
 // =============================================================================
 void initLEDs() {
-    FastLED.addLeds<WS2812B, PIN_LED_DATA, GRB>(leds, NUM_LEDS);
-    FastLED.setBrightness(LED_BRIGHTNESS);
-    fill_solid(leds, NUM_LEDS, CRGB(64, 64, 64));
-    FastLED.show();
+    pinMode(PIN_LED, OUTPUT);
+    // 3 quick flashes on boot
+    for (int i = 0; i < 3; i++) {
+        digitalWrite(PIN_LED, HIGH);
+        delay(100);
+        digitalWrite(PIN_LED, LOW);
+        delay(100);
+    }
 }
 
 void initBuzzer() {
@@ -524,11 +535,12 @@ void runSelfTest() {
     Serial.println(F("6. OLED:      SKIP"));
     selfTestScore++;
     
-    // 7. LEDs
-    fill_solid(leds, NUM_LEDS, CRGB(255, 0, 0)); FastLED.show(); delay(100);
-    fill_solid(leds, NUM_LEDS, CRGB(0, 255, 0)); FastLED.show(); delay(100);
-    fill_solid(leds, NUM_LEDS, CRGB(0, 0, 255)); FastLED.show(); delay(100);
-    Serial.println(F("7. LEDs:      PASS"));
+    // 7. LED
+    digitalWrite(PIN_LED, HIGH); delay(100);
+    digitalWrite(PIN_LED, LOW); delay(100);
+    digitalWrite(PIN_LED, HIGH); delay(100);
+    digitalWrite(PIN_LED, LOW);
+    Serial.println(F("7. LED:       PASS"));
     selfTestScore++;
     
     // 8. Buzzer
@@ -542,16 +554,13 @@ void runSelfTest() {
 }
 
 void displayScore(uint8_t score) {
-    CRGB color = (score >= 7) ? CRGB(0,255,0) : (score >= 5) ? CRGB(255,255,0) : CRGB(255,0,0);
-    
-    for (int i = 0; i < NUM_LEDS; i++) {
-        leds[i] = (i < (score * NUM_LEDS / 8)) ? color : CRGB(20,20,20);
-    }
-    FastLED.show();
-    
+    // Blink LED number of times equal to score
     for (int i = 0; i < score; i++) {
+        digitalWrite(PIN_LED, HIGH);
         tone(PIN_BUZZER, 1500, 40);
         delay(80);
+        digitalWrite(PIN_LED, LOW);
+        delay(120);
     }
 }
 

@@ -7,60 +7,60 @@
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  1. POWER ON        →  Self-test runs automatically        │
-│     LEDs: RGB flash                                         │
+│     LED: 3 quick flashes                                    │
 │                                                             │
-│  2. IDLE            →  Green breathing = ready              │
-│     LEDs: Green pulse                                       │
+│  2. IDLE            →  Slow blink = ready                   │
+│     LED: 1 sec on / 1 sec off                              │
 │                                                             │
 │  3. FLIP UPSIDE DOWN →  Hold for 0.5 sec                   │
-│     LEDs: Solid blue                                        │
+│     LED: Solid ON                                           │
 │                                                             │
 │  4. FLIP BACK       →  5 second countdown starts           │
-│     LEDs: Red blink (speeds up)                            │
+│     LED: Accelerating blink (500ms→250ms→100ms)            │
 │     Buzzer: Beeps (pitch rises)                            │
 │                                                             │
-│  5. ARMED           →  GREEN = DROP NOW                     │
-│     LEDs: Solid green                                       │
+│  5. ARMED           →  SOLID ON = DROP NOW                  │
+│     LED: Solid ON                                           │
 │     Buzzer: Long beep                                       │
 │                                                             │
 │  6. IMPACT          →  Logging for 2 sec after impact      │
-│     LEDs: Solid red                                         │
+│     LED: Rapid flash (50ms)                                 │
 │                                                             │
 │  7. COMPLETE        →  Data saved to SD card               │
-│     LEDs: Rainbow cycle                                     │
+│     LED: Double-blink heartbeat                             │
 │     Buzzer: Victory beeps                                   │
 │                                                             │
 │  8. POWER CYCLE     →  Reset for next test                 │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## LED Quick Reference
+## LED Quick Reference (Onboard LED - Pin 13)
 
-| LED Color | Meaning |
-|-----------|---------|
-| Green breathing | Idle - flip me to arm |
-| Solid blue | Upside down detected |
-| Red blinking | Countdown (5...4...3...2...1) |
-| **Solid green** | **READY - DROP NOW** |
-| Solid red | Impact detected, logging |
-| Rainbow | Complete, data saved |
-| Red flashing | Error - check hardware |
+| LED Pattern | Meaning |
+|-------------|---------|
+| Slow blink (1 sec on/off) | Idle - flip me to arm |
+| Solid ON | Upside down detected |
+| Accelerating blink | Countdown (5...4...3...2...1) |
+| **Solid ON** | **ARMED - DROP NOW** |
+| Rapid flash (50ms) | Impact detected, logging |
+| Double-blink heartbeat | Complete, data saved |
+| SOS pattern | Error - check hardware |
 
 ## Hardware Wiring
 
 ```
-Teensy 4.1          Sensors
+Teensy 4.1          Component
 ──────────────────────────────────
 Pin 18 (SDA)   →    H3LIS331DL SDA + MPU6050 SDA
-Pin 19 (SCL)   →    H3LIS331DL SCL + MPU6050 SCL  
-3.3V           →    H3LIS331DL VCC + MPU6050 VCC
-GND            →    H3LIS331DL GND + MPU6050 GND
+Pin 19 (SCL)   →    H3LIS331DL SCL + MPU6050 SCL
 Pin 4          →    Buzzer (+)
-Pin 5          →    WS2812B LED Data
-3.3V           →    WS2812B VCC
-GND            →    Buzzer (-) + WS2812B GND
+Pin 13         →    Onboard LED (built-in, no wiring needed)
+3.3V           →    H3LIS331DL VCC + MPU6050 VCC
+GND            →    H3LIS331DL GND + MPU6050 GND + Buzzer (-)
 SD Card        →    Built-in slot on Teensy 4.1
 ```
+
+**Note:** Using onboard LED only. No external LED strip required.
 
 ## Output Data
 
@@ -82,14 +82,14 @@ time_us,ax_g,ay_g,az_g,gx_dps,gy_dps,gz_dps
 
 1. Insert SD card (FAT32 formatted)
 2. Power on via USB or LiPo
-3. Wait for self-test (LEDs flash RGB, then show score)
-4. **Green breathing = ready to arm**
-5. Flip unit upside down (LEDs turn blue)
+3. Wait for self-test (LED flashes 3 times, then blinks score)
+4. **Slow blink = ready to arm**
+5. Flip unit upside down (LED turns solid ON)
 6. Flip back right-side up
-7. **Red blinking countdown begins (5 seconds)**
-8. **Solid GREEN = drop immediately**
-9. Impact triggers logging (red LED)
-10. After 2 seconds of quiet, data saves (rainbow)
+7. **Accelerating blink countdown begins (5 seconds)**
+8. **Solid ON = drop immediately**
+9. Impact triggers logging (rapid flash)
+10. After 2 seconds of quiet, data saves (double-blink heartbeat)
 11. Power cycle to reset for next test
 
 ## Stop Conditions
@@ -107,14 +107,16 @@ This captures bounces and secondary impacts automatically.
 | No response to flip | Check H3LIS331DL wiring (needs Z-axis) |
 | Won't trigger on impact | Impact may be <5g, lower threshold in config.h |
 | No file saved | Check SD card format (FAT32), reseat card |
-| Rainbow but no data | SD write failed, check card |
-| Red flashing on boot | Self-test failed, check I2C wiring |
+| Heartbeat but no data | SD write failed, check card |
+| SOS pattern on boot | Self-test failed, check I2C wiring |
 
 ## Adjustable Parameters (config.h)
 
 ```cpp
-#define COUNTDOWN_DURATION_MS   5000    // Countdown time (ms)
-#define IMPACT_THRESHOLD_G      5.0     // G-force to trigger
-#define POST_IMPACT_QUIET_MS    2000    // Time after last impact
-#define FLIP_HOLD_TIME_MS       500     // Hold upside down time
+#define COUNTDOWN_MS            5000    // Countdown time (ms)
+#define TRIGGER_THRESHOLD_G     5.0     // G-force to trigger
+#define POST_TRIGGER_MS         2000    // Time after last impact
+#define FLIP_HOLD_MS            500     // Hold upside down time
+#define UPSIDE_DOWN_G           -0.5    // Z-axis threshold (upside down)
+#define RIGHT_SIDE_UP_G         0.5     // Z-axis threshold (right side up)
 ```

@@ -11,7 +11,7 @@
 #define PIN_SDA         18      // I2C Data
 #define PIN_SCL         19      // I2C Clock
 #define PIN_BUZZER      4       // Piezo buzzer
-#define PIN_LED_DATA    5       // WS2812B data line
+#define PIN_LED         13      // Onboard LED
 #define PIN_SD_CS       BUILTIN_SDCARD  // Teensy 4.1 built-in SD
 
 // -----------------------------------------------------------------------------
@@ -41,8 +41,7 @@
 // -----------------------------------------------------------------------------
 // LED Configuration
 // -----------------------------------------------------------------------------
-#define NUM_LEDS        5       // Number of WS2812B LEDs
-#define LED_BRIGHTNESS  64      // 0-255, keep low for battery life
+// Using onboard LED on Pin 13 - no external LED strip required
 
 // -----------------------------------------------------------------------------
 // Self-Test Thresholds
@@ -50,6 +49,14 @@
 #define BATTERY_MIN_V       3.5     // Minimum battery voltage
 #define ACCEL_REST_TOL_G    0.15    // Tolerance for 1g at rest (±0.15g)
 #define GYRO_REST_TOL_DPS   5.0     // Tolerance for 0°/s at rest
+
+// -----------------------------------------------------------------------------
+// Gesture Detection
+// -----------------------------------------------------------------------------
+#define COUNTDOWN_MS        5000    // Countdown duration
+#define UPSIDE_DOWN_G       -0.5    // Z-axis threshold for upside down
+#define RIGHT_SIDE_UP_G     0.5     // Z-axis threshold for right side up
+#define FLIP_HOLD_MS        500     // Hold upside down duration
 
 // -----------------------------------------------------------------------------
 // Timing
