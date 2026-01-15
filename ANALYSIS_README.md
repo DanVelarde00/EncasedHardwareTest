@@ -40,6 +40,15 @@ pip install -r requirements.txt
 pip install numpy pandas scipy matplotlib
 ```
 
+**Compatibility:**
+- Python 3.8+
+- NumPy 1.20+ (compatible with both NumPy 1.x and 2.x)
+- Pandas 1.3+
+- Matplotlib 3.4+
+- SciPy 1.7+
+
+**Note:** The analysis suite automatically handles NumPy version differences (`np.trapz` vs `np.trapezoid`).
+
 ## Quick Start
 
 ### 1. Analyze a Single File
@@ -422,14 +431,28 @@ df = batch.process_all(generate_plots=False)
 ### Shock Indices
 
 **Head Injury Criterion (HIC):**
-- HIC-15: 15ms window, automotive safety standard
-- HIC-36: 36ms window, aircraft crash safety
-- Threshold: HIC > 1000 indicates severe injury risk
+- HIC-15: 15ms window, automotive safety standard (FMVSS 208)
+- HIC-36: 36ms window, aircraft crash safety (FAA regulations)
+- Formula: HIC = max[(t₂-t₁) × [1/(t₂-t₁) × ∫a²·⁵dt]²·⁵]
+- Thresholds:
+  - HIC < 700: Low injury risk
+  - HIC 700-1000: Moderate risk
+  - HIC > 1000: Severe injury risk
+  - HIC > 2000: Life-threatening
 
 **Gadd Severity Index (GSI):**
-- Integral of a^2.5 over time
-- Originally developed for head injury assessment
+- Formula: GSI = ∫a(t)²·⁵ dt
+- Originally developed for head injury assessment (1966)
+- Accounts for both magnitude and duration of impact
+- Thresholds:
+  - GSI < 1000: Generally safe
+  - GSI > 1000: Increasing injury risk
 - Higher values indicate more severe impact
+
+**Notes:**
+- Both metrics use the 2.5 power relationship from Wayne State Tolerance Curve
+- These are biomechanical injury predictors, not absolute measurements
+- Designed for human head impacts; interpretation may differ for electronics protection
 
 ## Contributing
 

@@ -1,4 +1,35 @@
-# STEP Firmware - Gesture Controlled
+# STEP - Standardized Test Electronics Package
+
+**Complete impact testing system with firmware + Python analysis suite**
+
+This repository contains:
+- **Firmware:** Teensy 4.1 gesture-controlled impact logger (no buttons needed)
+- **Analysis Suite:** Python tools for parsing, analyzing, and visualizing impact data
+- **Test Support:** Batch processing for 480-test experimental matrices
+
+📖 **New to STEP? Start here:** [QUICK_START.md](QUICK_START.md) (5-minute setup guide)
+
+## Table of Contents
+
+**Firmware:**
+- [Activation Sequence](#activation-sequence)
+- [LED Quick Reference](#led-quick-reference-onboard-led---pin-13)
+- [Hardware Wiring](#hardware-wiring)
+- [Test Procedure](#test-procedure)
+
+**Data Analysis:**
+- [Output Data Format](#output-data)
+- [Python Analysis Suite](#data-analysis-suite)
+- [Quick Start Examples](#quick-start---analyze-a-single-file)
+- [Batch Processing](#batch-processing---process-entire-test-matrix)
+
+**Configuration:**
+- [Adjustable Parameters](#adjustable-parameters-configh)
+- [Troubleshooting](#troubleshooting)
+
+---
+
+## Firmware - Gesture Controlled
 
 **No buttons or serial commands needed** - activate by flipping the unit.
 
@@ -77,6 +108,98 @@ time_us,ax_g,ay_g,az_g,gx_dps,gy_dps,gz_dps
 - `time_us` = microseconds since impact trigger
 - `ax/ay/az_g` = acceleration in g-force (H3LIS331DL, ±400g range)
 - `gx/gy/gz_dps` = rotation in degrees/second (MPU6050)
+
+## Data Analysis Suite
+
+**Python analysis tools are included for processing STEP data:**
+
+### Quick Start - Analyze a Single File
+
+```python
+from step_parser import quick_load
+from step_analysis import quick_analyze
+from step_visualization import STEPVisualizer
+
+# Load and analyze
+data = quick_load("STEP_001.csv")
+analysis = quick_analyze("STEP_001.csv")
+
+print(f"Peak G: {analysis.peak_total_g:.1f}g")
+print(f"HIC-15: {analysis.hic_15:.1f}")
+print(f"Impact Duration: {analysis.impact_duration_ms:.2f}ms")
+
+# Generate dashboard
+viz = STEPVisualizer()
+viz.plot_dashboard(data, analysis, save_path="results.png")
+```
+
+### Batch Processing - Process Entire Test Matrix
+
+```python
+from batch_process import quick_batch_process
+
+# Process all tests in organized directory structure
+df = quick_batch_process("STEP_Data/")
+# Outputs: CSV summary, JSON statistics, comparison plots
+```
+
+### Analysis Capabilities
+
+**Metrics Calculated:**
+- Peak accelerations (per axis + resultant magnitude)
+- Peak rotation rates (gyroscope data)
+- Impact duration and timing
+- HIC-15 & HIC-36 (Head Injury Criterion)
+- GSI (Gadd Severity Index)
+- Cumulative impulse & RMS acceleration
+- Velocity change estimation
+
+**Visualizations:**
+- Time-series plots (acceleration & rotation)
+- 3D trajectory visualization
+- Comprehensive dashboards
+- Multi-test comparisons
+- Statistical heatmaps
+
+**Batch Processing:**
+- Automatically process 480+ test matrix
+- Organized by gel type, box size, drop height
+- Generate summary statistics
+- Create comparison plots
+- Export to CSV/JSON
+
+### Installation
+
+```bash
+pip install -r requirements.txt
+```
+
+**Dependencies:** numpy, pandas, scipy, matplotlib
+
+### Documentation
+
+See **[ANALYSIS_README.md](ANALYSIS_README.md)** for complete documentation including:
+- Module API reference
+- 8 usage examples
+- Test matrix organization
+- Troubleshooting guide
+- Performance benchmarks
+
+### Testing
+
+```bash
+# Generate sample data
+python generate_sample_data.py
+
+# Run test suite
+python test_analysis.py
+```
+
+**Test Coverage:**
+- ✓ CSV parsing & validation
+- ✓ Impact analysis metrics
+- ✓ Visualization rendering
+- ✓ Batch processing pipeline
 
 ## Test Procedure
 
