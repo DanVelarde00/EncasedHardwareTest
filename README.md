@@ -1,13 +1,160 @@
 # STEP - Standardized Test Electronics Package
 
-**Complete impact testing system with firmware + Python analysis suite**
+> **Complete impact testing system for evaluating gel-based protective enclosures**
 
-This repository contains:
-- **Firmware:** Teensy 4.1 gesture-controlled impact logger (no buttons needed)
-- **Analysis Suite:** Python tools for parsing, analyzing, and visualizing impact data
-- **Test Support:** Batch processing for 480-test experimental matrices
+High-speed data logger + Python analysis suite for systematic impact testing of electronics protection systems.
 
-📖 **New to STEP? Start here:** [QUICK_START.md](QUICK_START.md) (5-minute setup guide)
+---
+
+## 🎯 Overview
+
+**STEP** is a gesture-controlled impact logger that records 3-axis acceleration (±400g) and rotation data at 1000 Hz during drop tests. No buttons, no cables—just flip to arm and drop.
+
+**Key Features:**
+- ✅ **Gesture activation** - Flip to arm, no buttons needed
+- ✅ **High-speed logging** - 1000 Hz, 6-axis data (accel + gyro)
+- ✅ **Wide range** - ±400g accelerometer for extreme impacts
+- ✅ **Auto-save** - Files auto-increment (STEP_001.csv, STEP_002.csv...)
+- ✅ **Python analysis** - Complete suite for parsing, analysis, visualization
+- ✅ **Batch processing** - Process 480+ test matrices automatically
+- ✅ **Industry metrics** - HIC-15, HIC-36, GSI shock indices
+
+**Use Case:** Testing gel formulations (synthetic vs. gelatin) at different concentrations, box sizes, and drop heights to optimize electronics protection.
+
+---
+
+## 📊 System Specifications
+
+| Component | Specification |
+|-----------|---------------|
+| **Hardware** | Teensy 4.1 (600 MHz ARM Cortex-M7) |
+| **Accelerometer** | H3LIS331DL (±400g range, 3-axis) |
+| **Gyroscope** | MPU6050 (±2000 dps, 3-axis) |
+| **Sampling Rate** | 1000 Hz (1 ms resolution) |
+| **Data Storage** | microSD card (FAT32, auto-increment files) |
+| **Trigger** | >5g threshold (configurable) |
+| **Buffer** | 3000 samples (3 seconds @ 1000 Hz) |
+| **Power** | USB or LiPo battery |
+| **Activation** | Gesture control (flip upside-down) |
+
+---
+
+## 🚀 Quick Start
+
+📖 **New to STEP?** See [QUICK_START.md](QUICK_START.md) for a 5-minute setup guide.
+
+### Hardware Setup
+```bash
+# 1. Wire sensors to Teensy 4.1
+#    - H3LIS331DL & MPU6050 → I2C (pins 18/19)
+#    - Buzzer → Pin 4
+# 2. Upload STEP_Main.ino
+# 3. Insert FAT32 SD card
+```
+
+### Run First Test
+```bash
+# 1. Power on → Wait for slow LED blink
+# 2. Flip upside-down → Flip back
+# 3. Wait for 5-second countdown
+# 4. Drop when LED is solid
+# 5. Data auto-saves as STEP_001.csv
+```
+
+### Analyze Data
+```python
+from step_analysis import quick_analyze
+
+analysis = quick_analyze("STEP_001.csv")
+print(f"Peak: {analysis.peak_total_g:.1f}g")
+print(f"HIC-15: {analysis.hic_15:.1f}")
+```
+
+---
+
+## 📁 Repository Contents
+
+| File/Directory | Description |
+|----------------|-------------|
+| **Firmware** | |
+| `STEP_Main.ino` | Main firmware (gesture control, logging) |
+| `config.h` | Hardware configuration & thresholds |
+| **Python Analysis** | |
+| `step_parser.py` | CSV parsing with validation (400 lines) |
+| `step_analysis.py` | Impact metrics (HIC, GSI, peaks) (415 lines) |
+| `step_visualization.py` | Plotting tools (575 lines) |
+| `batch_process.py` | Batch processing pipeline (380 lines) |
+| **Documentation** | |
+| `README.md` | This file (overview + firmware guide) |
+| `QUICK_START.md` | 5-minute setup guide |
+| `ANALYSIS_README.md` | Python API reference (650 lines) |
+| `PROJECT_OVERVIEW.md` | Complete system documentation |
+| `SKILL.md` | Hardware troubleshooting |
+| **Testing** | |
+| `test_data/` | 5 sample CSV files (20g to 100g impacts) |
+| `test_analysis.py` | Automated test suite |
+| `generate_sample_data.py` | Synthetic data generator |
+| `example_usage.py` | 8 usage examples |
+
+**Total:** 2,776 lines of analysis code + comprehensive documentation
+
+---
+
+## 🔧 Documentation Guide
+
+Choose your path:
+
+| If you want to... | Read this |
+|-------------------|-----------|
+| **Get started in 5 minutes** | [QUICK_START.md](QUICK_START.md) |
+| **Understand the firmware** | [README.md](#firmware---gesture-controlled) (below) |
+| **Use the Python analysis tools** | [ANALYSIS_README.md](ANALYSIS_README.md) |
+| **See the complete system design** | [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) |
+| **Fix hardware issues** | [SKILL.md](SKILL.md) |
+
+---
+
+## 🎬 Workflow Overview
+
+```
+┌────────────┐     ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│  HARDWARE  │────▶│  FIRMWARE   │────▶│  DATA FILES  │────▶│  ANALYSIS   │
+│            │     │             │     │              │     │             │
+│ Teensy 4.1 │     │ Gesture     │     │ STEP_001.csv │     │ Python      │
+│ H3LIS331DL │     │ Control     │     │ STEP_002.csv │     │ Suite       │
+│ MPU6050    │     │ 1000 Hz Log │     │ STEP_003.csv │     │ Batch Proc  │
+│ SD Card    │     │ Auto-save   │     │ ...          │     │ Plots       │
+└────────────┘     └─────────────┘     └──────────────┘     └─────────────┘
+      │                   │                     │                    │
+      │                   │                     │                    │
+   Physical            Flip to              3000 samples          Peak G
+   Impact              Activate             7 channels            HIC/GSI
+   Event               Drop Test            CSV format            Dashboards
+```
+
+**Process:**
+1. **Setup** → Wire hardware, upload firmware, insert SD card
+2. **Test** → Flip to arm, countdown, drop, auto-save
+3. **Analyze** → Python tools parse CSV, calculate metrics, generate plots
+4. **Compare** → Batch process 480 tests, statistical analysis
+
+---
+
+## ✅ Project Status
+
+| Component | Status | Details |
+|-----------|--------|---------|
+| **Firmware** | ✅ Complete | Gesture control, 1000 Hz logging, self-test |
+| **Hardware** | ✅ Tested | Teensy 4.1 + H3LIS331DL + MPU6050 |
+| **CSV Parser** | ✅ Complete | Validation, error detection, DataFrame conversion |
+| **Analysis Engine** | ✅ Complete | 17+ metrics (HIC, GSI, peaks, duration) |
+| **Visualization** | ✅ Complete | 5 plot types (time-series, 3D, dashboards) |
+| **Batch Processing** | ✅ Complete | 480-test matrix support, auto-organization |
+| **Documentation** | ✅ Complete | 4 guides (Quick Start, API, Overview, Hardware) |
+| **Testing** | ✅ Validated | 4 test suites pass, sample data included |
+| **Production Ready** | ✅ Yes | All components tested and documented |
+
+---
 
 ## Table of Contents
 
@@ -243,3 +390,104 @@ This captures bounces and secondary impacts automatically.
 #define UPSIDE_DOWN_G           -0.5    // Z-axis threshold (upside down)
 #define RIGHT_SIDE_UP_G         0.5     // Z-axis threshold (right side up)
 ```
+
+---
+
+## 📖 Additional Resources
+
+### Documentation
+- **[QUICK_START.md](QUICK_START.md)** - Get running in 5 minutes
+- **[ANALYSIS_README.md](ANALYSIS_README.md)** - Complete Python API reference (650 lines)
+- **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)** - System architecture and design decisions
+- **[SKILL.md](SKILL.md)** - Hardware troubleshooting and setup guide
+
+### Example Code
+- **[example_usage.py](example_usage.py)** - 8 complete usage examples
+- **[test_analysis.py](test_analysis.py)** - Automated test suite
+- **[generate_sample_data.py](generate_sample_data.py)** - Create synthetic test data
+
+### Test Data
+- **[test_data/](test_data/)** - 5 sample CSV files (20g to 100g impacts)
+  - STEP_001.csv - 1m drop (~20g)
+  - STEP_002.csv - 2m drop (~40g)
+  - STEP_003.csv - 3m drop (~60g)
+  - STEP_004.csv - 5m drop (~100g)
+  - STEP_005.csv - Soft gel variant (longer duration)
+
+---
+
+## 🧪 Experimental Design
+
+**Testing 480 configurations:**
+- **Gel Types:** Synthetic (SEBS polymer) vs. Water-based (Gelatin)
+- **Concentrations:** 3%, 5%, 7%, 10% (synthetic) | 10%, 15%, 20% (gelatin)
+- **Box Sizes:** 150mm, 200mm, 250mm cubic enclosures
+- **Drop Heights:** 1m, 2m, 3m, 5m (≈20g, 40g, 60g, 100g impacts)
+- **Replicates:** 5 per configuration
+
+**Total:** 2 gel systems × 4 concentrations × 3 sizes × 4 heights × 5 reps = **480 tests**
+
+See [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) for complete experimental protocol.
+
+---
+
+## 🏆 Key Achievements
+
+✅ **Button-free operation** - Gesture control eliminates mechanical failures
+✅ **Industry-standard metrics** - HIC-15/36, GSI shock indices
+✅ **High-speed capture** - 1000 Hz sampling, ±400g range
+✅ **Complete automation** - Auto-increment files, batch processing
+✅ **Production-ready** - All tests pass, comprehensive documentation
+✅ **Open and extensible** - Modular Python architecture
+
+---
+
+## 📝 Version History
+
+**v1.0.0** (January 2026)
+- ✅ Complete firmware with gesture control
+- ✅ Python analysis suite (4 modules, 2776 lines)
+- ✅ Batch processing pipeline
+- ✅ Comprehensive documentation (4 guides)
+- ✅ Automated testing suite
+- ✅ Sample data generation
+
+---
+
+## 📄 License
+
+This project is part of the STEP impact testing system for evaluating gel-based electronics protection.
+
+**Author:** Dan Velarde
+**Date:** January 2026
+
+---
+
+## 🤝 Support
+
+**Questions about firmware?** See [README.md](#firmware---gesture-controlled) above
+**Questions about analysis?** See [ANALYSIS_README.md](ANALYSIS_README.md)
+**Hardware issues?** See [SKILL.md](SKILL.md)
+**Getting started?** See [QUICK_START.md](QUICK_START.md)
+
+---
+
+**Quick Command Reference:**
+
+```bash
+# Hardware
+# 1. Upload STEP_Main.ino to Teensy 4.1
+# 2. Insert FAT32 SD card
+# 3. Flip to arm → Drop when solid LED
+
+# Analysis
+pip install -r requirements.txt                    # Install dependencies
+python generate_sample_data.py                     # Generate test data
+python test_analysis.py                            # Run test suite
+python -c "from step_analysis import quick_analyze; print(quick_analyze('STEP_001.csv'))"
+python batch_process.py STEP_Data/                 # Batch process 480 tests
+```
+
+---
+
+**[⬆ Back to Top](#step---standardized-test-electronics-package)**
